@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Vamp: Particles Demo</title>
+        <link href='site.css' rel='stylesheet' type='text/css'>
+    </head>
+    <body>
+        <canvas id="demo" width="200" height="200" />
+        <script>
+            var canvas = document.getElementById('demo');
+            var context = canvas.getContext("2d");
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            window.onresize = () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            };
+
+            const defaultConfig = {
+                color: { r: 11, g: 102, b: 35 },
+                backgroundColor: {r:20, g:45, b:60},
+                updateInterval: 5000,
+                clusterCount: 10,
+                particlesPerCluster: 50,
+                backgroundImageLocation: 'center',
+                backgroundImageTransparency: 1
+            }
+
+            fetch('config')
+                .then((response) => response.json())
+                .then(function(data) {
+                    config = Object.assign({}, defaultConfig, data);
+                    start(Object.assign({}, defaultConfig, data));
+                });
+            
+            const requestParticles = (particles, config) => {
+                Promise.all(particles.map(p => fetch('particles').then((response) => response.status < 500 ? response.json() : undefined).catch(err => undefined)))
+                    .then(results => {
+                        const data = results.sort((a, b) => a.version < b.version ? -1 : a.version > b.version ? 1 : 0).forEach((data, index) => {
+                            particles[index].map(p => {
+                                if (data) {
+                                    p.c = data.color;
+                                    p.shape = data.shape;
+                                    p.style = 'fill';
+                                } else {
+                                    p.style = 'stroke';
+                                }
+                            });
+                            
+                        });
+                    });
+            };
+            
+            const start = (config) => {
+                var particles = new Array(config.clusterCount).fill().map(pc => { return generateCluster(config.particlesPerCluster) });
+                if (config.backgroundImage) {
+                    var image = new Image();
+                    image.src = config.backgroundImage;
+                    image.onload = () => backgroundImage = image;
+                }
+                draw(particles, config);
+                setInterval(() => requestParticles(particles, config), config.updateInterval)
+            }
+
+            var canvasWidth = context.width = window.innerWidth,
+			    canvasHeigth = context.height = window.innerHeight,
+                pi2 = Math.PI*2,
+                random = t => Math.random() * t,
+                binRandom = f => Math.random() < f;
+            
+            
+            var createParticle = () => {
+                return {
+                    p: {x: random(canvasWidth), y: random(canvasHeigth)},
+                    v: {x: random(.5) * (binRandom(.5) ? 1 : -1), y: random(.5) * (binRandom(.5) ? 1: -1)},
+                    s: random(1) + 7, 
+                    o: random(1) + .3,
+                    c: {r:255, g:255, b:255},
+                    style: 'stroke',
+                    shape: 'circle'
+                }
+            };
+            var generateCluster = (count) => new Array(count).fill().map(p => { return createParticle() });
+            var update = (particle) => {
+                canvasWidth = context.width = window.innerWidth;
+			    canvasHeigth = context.height = window.innerHeight;
+                particle.p.x += particle.v.x;
+                particle.p.y += particle.v.y;
+                if(particle.p.x > canvasWidth || particle.p.x < 0) particle.v.x *=-1;
+                if(particle.p.y > canvasHeigth || particle.p.y < 0) particle.v.y *=-1;
+            };
+            var render = (ctx, particle, config) => {
+                ctx.fillStyle = "rgba(" + particle.c.r + "," + particle.c.g + "," + particle.c.b + "," + particle.o + ")";
+                ctx.strokeStyle = "rgba(" + particle.c.r + "," + particle.c.g + "," + particle.c.b + "," + particle.o + ")";
+                if (particle.shape === 'rectangle') {
+                    if (particle.style === 'fill') {
+                        ctx.fillRect(particle.p.x, particle.p.y, particle.s, particle.s);
+                    } else {
+                        ctx.strokeRect(particle.p.x, particle.p.y, particle.s, particle.s);
+                    }
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(particle.p.x, particle.p.y, particle.s, 0, pi2);
+                    ctx.closePath();
+                    if (particle.style === 'fill') {
+                        ctx.fill();
+                    } else {
+                        ctx.stroke();
+                    }
+                }
+            };
+            var draw = (particles, config) => {
+                drawBackground(context, config);
+                particles.map(pc => pc.map(p => { update(p) }));
+                particles.map(pc => pc.map(p => { render(context, p, config) }));
+                requestAnimationFrame(() => draw(particles, config));
+            }
+            var backgroundImage;
+            var drawBackground = (ctx, config) => {
+                ctx.fillStyle = "rgb(" + config.backgroundColor.r + "," + config.backgroundColor.g + "," + config.backgroundColor.b + ")";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                if (backgroundImage) {
+                    let x = 0;
+                    let y = 0;
+                    if (config.backgroundImageLocation === 'center') {
+                        x = canvas.width / 2 - backgroundImage.width / 2;
+                        y = canvas.height / 2 - backgroundImage.height / 2;
+                    }
+                    ctx.save();
+                    if (config.backgroundImageTransparency) {
+                        ctx.globalAlpha = parseFloat(config.backgroundImageTransparency);
+                    }
+                    ctx.drawImage(backgroundImage, x, y);
+                    ctx.restore();
+                }
+            };
+        </script>
+    </body>
+</html>
