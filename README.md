@@ -1,6 +1,6 @@
 # Demo: Particles
 
-Vamp Particles demo is created to demonstrate the effect canary releasing in a visual way.
+Vamp Particles demo is created to demonstrate the effect of canary releasing in a visual way.
 
 ## Run
 
@@ -20,3 +20,7 @@ Available arguments;
 
 - **color**: Color of a particle. This should be a hex value like `#00FF00`
 - **shape**: Shape of the particle. This can be either `circle` or `rectangle`
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE).
