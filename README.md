@@ -1,6 +1,6 @@
 # Demo: Particles
 
-Vamp Particles demo is created to demostrate the effect canary releasing in a visual way.
+Vamp Particles demo is created to demonstrate the effect canary releasing in a visual way.
 
 ## Run
 
