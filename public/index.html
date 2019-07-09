@@ -19,6 +19,7 @@
 
             const defaultConfig = {
                 color: { r: 11, g: 102, b: 35 },
+                shape: 'circle',
                 backgroundColor: {r:20, g:45, b:60},
                 updateInterval: 5000,
                 clusterCount: 10,
@@ -39,6 +40,7 @@
                     .then(results => {
                         const data = results.sort((a, b) => a.version < b.version ? -1 : a.version > b.version ? 1 : 0).forEach((data, index) => {
                             particles[index].map(p => {
+                                data = Object.assign({}, { color: defaultConfig.color, shape: defaultConfig.shape }, data)
                                 if (data) {
                                     p.c = data.color;
                                     p.shape = data.shape;
