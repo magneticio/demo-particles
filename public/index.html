@@ -40,8 +40,8 @@
                     .then(results => {
                         const data = results.sort((a, b) => a.version < b.version ? -1 : a.version > b.version ? 1 : 0).forEach((data, index) => {
                             particles[index].map(p => {
-                                data = Object.assign({}, { color: defaultConfig.color, shape: defaultConfig.shape }, data)
                                 if (data) {
+                                    data = Object.assign({}, { color: defaultConfig.color, shape: defaultConfig.shape }, data);
                                     p.c = data.color;
                                     p.shape = data.shape;
                                     p.style = 'fill';
