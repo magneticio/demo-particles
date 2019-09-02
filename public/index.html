@@ -2,7 +2,7 @@
 <html>
     <head>
         <title>Vamp: Particles Demo</title>
-        <link href='site.css' rel='stylesheet' type='text/css'>
+        <link href='/site.css' rel='stylesheet' type='text/css'>
     </head>
     <body>
         <canvas id="demo" width="200" height="200" />
@@ -28,7 +28,7 @@
                 backgroundImageTransparency: 1
             }
 
-            fetch('config')
+            fetch('/config')
                 .then((response) => response.json())
                 .then(function(data) {
                     config = Object.assign({}, defaultConfig, data);
@@ -36,7 +36,7 @@
                 });
             
             const requestParticles = (particles, config) => {
-                Promise.all(particles.map(p => fetch('particles').then((response) => response.status < 500 ? response.json() : undefined).catch(err => undefined)))
+                Promise.all(particles.map(p => fetch('/particles').then((response) => response.status < 500 ? response.json() : undefined).catch(err => undefined)))
                     .then(results => {
                         const data = results.sort((a, b) => a.version < b.version ? -1 : a.version > b.version ? 1 : 0).forEach((data, index) => {
                             particles[index].map(p => {

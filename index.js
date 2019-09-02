@@ -15,8 +15,6 @@ const argv = yargs
 
 const version = argv.version || uuid.v4();
 
-app.use(express.static("public"));
-
 app.get("/config", (req, res) => {
   let config = Object.assign({}, argv);
   delete config.$0;
@@ -46,6 +44,9 @@ app.get("/particles", (req, res) => {
   }
   res.send(particles);
 });
+
+app.use("/user/:id", express.static("public"));
+app.use("/", express.static("public"));
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));
 
