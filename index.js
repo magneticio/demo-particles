@@ -10,23 +10,31 @@ const argv = yargs
     description: "Rate which 500 error will be returned",
     type: "number"
   })
+  .option("appVersion", {
+    description: "Version of the application",
+    type: "string",
+    default: uuid.v4()
+  })
   .help()
   .alias("help", "h").argv;
 
-const version = argv.version || uuid.v4();
+const version = argv.appVersion || uuid.v4();
 
-app.get("/config", (req, res) => {
+const useConfig = (req, res) => {
   let config = Object.assign({}, argv);
   delete config.$0;
   delete config._;
   if (argv.backgroundColor) {
     config.backgroundColor = hexToRgb(argv.backgroundColor);
   }
+  if (req.params.id) {
+    config.text = `${config.text || ""} Tenant: ${req.params.id}`;
+  }
   res.send(config);
-});
+};
 
 var count = 0;
-app.get("/particles", (req, res) => {
+const useParticles = (req, res) => {
   let particles = { version: version };
   if (argv.color) {
     particles = Object.assign({}, particles, { color: hexToRgb(argv.color) });
@@ -43,7 +51,12 @@ app.get("/particles", (req, res) => {
     }
   }
   res.send(particles);
-});
+};
+
+app.get("/user/:id/config", useConfig);
+app.get("/user/:id/particles", useParticles);
+app.get("/config", useConfig);
+app.get("/particles", useParticles);
 
 app.use("/user/:id", express.static("public"));
 app.use("/", express.static("public"));

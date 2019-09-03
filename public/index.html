@@ -24,11 +24,12 @@
                 updateInterval: 5000,
                 clusterCount: 10,
                 particlesPerCluster: 50,
+                textColor: {r:255, g:255, b:255},
                 backgroundImageLocation: 'center',
                 backgroundImageTransparency: 1
             }
 
-            fetch('/config')
+            fetch('config')
                 .then((response) => response.json())
                 .then(function(data) {
                     config = Object.assign({}, defaultConfig, data);
@@ -36,7 +37,7 @@
                 });
             
             const requestParticles = (particles, config) => {
-                Promise.all(particles.map(p => fetch('/particles').then((response) => response.status < 500 ? response.json() : undefined).catch(err => undefined)))
+                Promise.all(particles.map(p => fetch('particles').then((response) => response.status < 500 ? response.json() : undefined).catch(err => undefined)))
                     .then(results => {
                         const data = results.sort((a, b) => a.version < b.version ? -1 : a.version > b.version ? 1 : 0).forEach((data, index) => {
                             particles[index].map(p => {
@@ -45,6 +46,7 @@
                                     p.c = data.color;
                                     p.shape = data.shape;
                                     p.style = 'fill';
+                                    p.version = data.version;
                                 } else {
                                     p.style = 'stroke';
                                 }
@@ -71,6 +73,8 @@
                 random = t => Math.random() * t,
                 binRandom = f => Math.random() < f;
             
+            var statistics = {};
+            
             
             var createParticle = () => {
                 return {
@@ -91,6 +95,12 @@
                 particle.p.y += particle.v.y;
                 if(particle.p.x > canvasWidth || particle.p.x < 0) particle.v.x *=-1;
                 if(particle.p.y > canvasHeigth || particle.p.y < 0) particle.v.y *=-1;
+                if (particle.version) {
+                    if (!statistics[particle.version]) {
+                        statistics[particle.version] = 0;
+                    }
+                    statistics[particle.version] += 1;
+                }
             };
             var render = (ctx, particle, config) => {
                 ctx.fillStyle = "rgba(" + particle.c.r + "," + particle.c.g + "," + particle.c.b + "," + particle.o + ")";
@@ -113,9 +123,13 @@
                 }
             };
             var draw = (particles, config) => {
-                drawBackground(context, config);
+                // Update
+                statistics = {};
                 particles.map(pc => pc.map(p => { update(p) }));
+                // Render
+                drawBackground(context, config);
                 particles.map(pc => pc.map(p => { render(context, p, config) }));
+                drawStatistics(context, config);
                 requestAnimationFrame(() => draw(particles, config));
             }
             var backgroundImage;
@@ -126,8 +140,8 @@
                     let x = 0;
                     let y = 0;
                     if (config.backgroundImageLocation === 'center') {
-                        x = canvas.width / 2 - backgroundImage.width / 2;
-                        y = canvas.height / 2 - backgroundImage.height / 2;
+                        x = (canvas.width - backgroundImage.width) / 2;
+                        y = (canvas.height - backgroundImage.height) / 2;
                     }
                     ctx.save();
                     if (config.backgroundImageTransparency) {
@@ -137,6 +151,30 @@
                     ctx.restore();
                 }
             };
+            var drawStatistics = (ctx, config) => {
+                if (config.text && config.text !== '') {
+                    ctx.font = "30px Arial";
+                    let textX = 10;
+                    let textY = 30;
+                    if (config.textAlign === 'center') {
+                        textX = canvas.width / 2;
+                        textY = canvas.height / 2;
+                        ctx.textAlign = config.textAlign;
+                    }
+                    ctx.fillStyle = "rgb(" + config.textColor.r + "," + config.textColor.g + "," + config.textColor.b + ")";
+                    ctx.fillText(config.text, textX, textY);
+                }
+                Object.keys(statistics).forEach((version, index) => {
+                    drawVersionStatistics(ctx, index, version, statistics[version]);
+                });
+            }
+            var drawVersionStatistics = (ctx, line, version, percentage) => {
+                let x = 10;
+                let y = 65 + (line * 30) + 5;
+                ctx.font = "20px Arial";
+                ctx.fillStyle = "rgb(" + config.textColor.r + "," + config.textColor.g + "," + config.textColor.b + ")";
+                ctx.fillText(version + ": " + percentage, x, y);
+            }
         </script>
     </body>
 </html>
