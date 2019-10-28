@@ -12,6 +12,6 @@
       "runtimeArgs": ["run", "debug", "--"],
       "port": 9229,
       "cwd": "${workspaceFolder}",
-      "args": ["--color=#FF0000", "--backgroundImage=images/logo.svg", "--backgroundImageTransparency=0.1"]
+      "args": ["--color=#FF0000", "--errorRate=2", "--appVersion=1.0"]
     }
 }

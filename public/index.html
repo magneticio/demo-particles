@@ -26,7 +26,8 @@
                 particlesPerCluster: 50,
                 textColor: {r:255, g:255, b:255},
                 backgroundImageLocation: 'center',
-                backgroundImageTransparency: 1
+                backgroundImageTransparency: 1,
+                showStats: false
             }
 
             fetch('config')
@@ -152,6 +153,9 @@
                 }
             };
             var drawStatistics = (ctx, config) => {
+                if (!config.showStats) {
+                    return; 
+                }
                 if (config.text && config.text !== '') {
                     ctx.font = "30px Arial";
                     let textX = 10;
