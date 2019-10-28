@@ -1,0 +1,29 @@
+# Default values for chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+version: "1.0"
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: magneticio/particles
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets: []
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+particles:
+  color: "#00FF00"
+  shape: circle
+  errorRate: 0
+
