@@ -73,3 +73,27 @@ const hexToRgb = hex => {
       }
     : null;
 };
+
+//
+// Keep allocations referenced so they aren't garbage collected.
+//
+const allocations = [];
+
+//
+// Allocate a certain size
+//
+const alloc = (size) => {
+  const numbers = size / 8;
+  const arr = []
+  arr.length = numbers; // Simulate allocation of 'size' bytes.
+  for (let i = 0; i < numbers; i++) {
+      arr[i] = i;
+  }
+  return arr;
+};
+
+if (argv.extraMem && !isNaN(argv.extraMem)) {
+  allocations.push(alloc(argv.extraMem * 1024 * 1024))
+}
+
+console.log(process.memoryUsage());
