@@ -16,22 +16,43 @@ const argv = yargs
     type: "string",
     default: uuid.v4()
   })
+  .option("clusterCount", {
+    description: "Number of partifcle groups showing on the screen",
+    type: "number",
+    default: 50
+  })
+  .option("updateInterval", {
+    description: "Milliseconds between requests to the server",
+    type: "number",
+    default: 5000
+  })
+  .option("healthCheckGracePeriodSeconds", {
+    description: "Period in which health check will always be healthy",
+    type: "number",
+    default: 0
+  })
+  .option("resourceCheckGracePeriodSeconds", {
+    description: "Additional delay before health check reacts to low CPU and memory limits",
+    type: "number",
+    default: 0
+  })
+  .option("minCPU", {
+    description: "The health check will fail if the Pod resources.limits.cpu is less than this value (m)",
+    type: "number"
+  })
+  .option("minMem", {
+    description: "The health check will fail if the Pod resources.limits.memory is less than this value (Mi)",
+    type: "number"
+  })
+  .option("extraMemPerRequest", {
+    description: "The Pod memory usage will be increased by this value, after every request (Ki)",
+    type: "number"
+  })
   .help()
   .alias("help", "h").argv;
 
-const version = argv.appVersion || uuid.v4();
-
-if (argv.clusterCount && (isNaN(argv.clusterCount) || argv.clusterCount < 1)) {
-  console.error(`clusterCount must be a number >= 1 (${argv.clusterCount})`);
-  process.exitCode = 1;
-}
-const clusterCount = argv.clusterCount || 50;
-
-if (argv.updateInterval && (isNaN(argv.updateInterval) || argv.updateInterval < 1000)) {
-  console.error(`updateInterval must be a number >= 1000 (${argv.updateInterval})`);
-  process.exitCode = 1;
-}
-const updateInterval = argv.updateInterval || 5000;
+const healthCheckAfterMs = Date.now() + (argv.healthCheckGracePeriodSeconds * 1000);
+const resourceCheckAfterMs = healthCheckAfterMs + (argv.resourceCheckGracePeriodSeconds * 1000);
 
 const useConfig = (req, res) => {
   let config = Object.assign({}, argv);
@@ -41,16 +62,19 @@ const useConfig = (req, res) => {
     config.backgroundColor = hexToRgb(argv.backgroundColor);
   }
   if (!config.clusterCount) {
-    config.clusterCount = clusterCount;
+    config.clusterCount = argv.clusterCount;
   }
   if (!config.updateInterval) {
-    config.updateInterval = updateInterval;
+    config.updateInterval = argv.updateInterval;
   }
   if (req.params.id) {
     config.text = `${config.text || ""} Tenant: ${req.params.id}`;
   }
   res.send(config);
 };
+
+// modified if health check fails
+let errorRate = argv.errorRate;
 
 // used to calc "load"
 var countPerWindow = 0;
@@ -59,20 +83,23 @@ var count = 0;
 const useParticles = (req, res) => {
   countPerWindow++;
 
-  let particles = { version: version };
+  let particles = { version: argv.version };
   if (argv.color) {
     particles = Object.assign({}, particles, { color: hexToRgb(argv.color) });
   }
   if (argv.shape) {
     particles = Object.assign({}, particles, { shape: argv.shape });
   }
-  if (argv.errorRate) {
-    if (count++ % argv.errorRate == 0) {
+  if (errorRate) {
+    if (count++ % errorRate == 0) {
       if (count == 100) {
         count = 0;
       }
       res.status(500);
     }
+  }
+  if (argv.extraMemPerRequest) {
+    allocations.push(alloc(argv.extraMemPerRequest * 1024));
   }
   res.send(particles);
 };
@@ -81,7 +108,7 @@ const LOAD_OK = "ok";
 const LOAD_HIGH = "high";
 const LOAD_LOW = "low";
 const LOAD_WINDOW_MS = 15000;
-const HIGH_COUNT_PER_WINDOW = clusterCount * LOAD_WINDOW_MS / updateInterval * 95 / 100;
+const HIGH_COUNT_PER_WINDOW = argv.clusterCount * LOAD_WINDOW_MS / argv.updateInterval * 50 / 100;
 const LOW_COUNT_PER_WINDOW = HIGH_COUNT_PER_WINDOW * 40 / 100;
 var load = LOAD_OK;
 
@@ -102,18 +129,70 @@ cron.schedule("0,15,30,45 * * * * *", () => {
   console.log(`load: ${load} (count: ${c})`);
 });
 
-
 const getLoad = (req, res) => {
   var l = load;
   load = LOAD_OK;
   res.send({ load: l });
 };
 
+const getHealth = (req, res) => {
+  console.log('Checking health');
+  if (healthCheckAfterMs > Date.now()) {
+    console.log('Healthy - not checking resources');
+    res.send('ok');
+    return;
+  }
+
+  // Return unhealthy, if limit is less than minMem
+  console.log(`minMem: ${argv.minMem}Mi; MEM_LIMIT: ${process.env.MEM_LIMIT}Mi`);
+  if (argv.minMem) {
+    if (process.env.MEM_LIMIT && !isNaN(process.env.MEM_LIMIT)) {
+      if (argv.minMem > process.env.MEM_LIMIT) {
+        console.log('Unhealthy - memory limit to low');
+        if (resourceCheckAfterMs > Date.now()) {
+          console.log('Generating errors');
+          // generate 20% errors
+          errorRate = 5;
+          res.send('ok');
+          return;
+        }
+        res.status(500);
+        res.send('error: memory limit to low');
+        return;
+      }
+    }
+  }
+
+  // Return unhealthy, if limit is less than minCPU
+  console.log(`minCPU: ${argv.minCPU}m; CPU_LIMIT: ${process.env.CPU_LIMIT}m`);
+  if (argv.minCPU) {
+    if (process.env.CPU_LIMIT && !isNaN(process.env.CPU_LIMIT)) {
+      if (argv.minCPU > process.env.CPU_LIMIT) {
+        console.log('Unhealthy - CPU limit to low');
+        if (resourceCheckAfterMs > Date.now()) {
+          console.log('Generating errors');
+          // generate 20% errors
+          errorRate = 5;
+          res.send('ok');
+          return;
+        }
+        res.status(500);
+        res.send('error: CPU limit to low');
+        return;
+      }
+    }
+  }
+
+  console.log('Healthy');
+  res.send('ok');
+}
+
 app.get("/user/:id/config", useConfig);
 app.get("/user/:id/particles", useParticles);
 app.get("/config", useConfig);
 app.get("/particles", useParticles);
 app.get("/load", getLoad);
+app.get("/health", getHealth);
 
 app.use("/user/:id", express.static("public"));
 app.use("/", express.static("public"));
@@ -148,7 +227,3 @@ const alloc = (size) => {
   }
   return arr;
 };
-
-if (argv.extraMem && !isNaN(argv.extraMem)) {
-  allocations.push(alloc(argv.extraMem * 1024 * 1024))
-}
