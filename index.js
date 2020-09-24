@@ -83,7 +83,7 @@ var count = 0;
 const useParticles = (req, res) => {
   countPerWindow++;
 
-  let particles = { version: argv.version };
+  let particles = { version: argv.appVersion };
   if (argv.color) {
     particles = Object.assign({}, particles, { color: hexToRgb(argv.color) });
   }
