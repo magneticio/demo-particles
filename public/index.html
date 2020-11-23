@@ -29,18 +29,40 @@
             textColor: { r: 255, g: 255, b: 255 },
             backgroundImageLocation: 'center',
             backgroundImageTransparency: 1,
-            showStats: false
+            showStats: false,
+            geolocService: 'https://europe-west1-vamp-177714.cloudfunctions.net/geolocation'
         }
 
         fetch('config')
             .then((response) => response.json())
             .then(function (data) {
                 config = Object.assign({}, defaultConfig, data);
-                start(Object.assign({}, defaultConfig, data));
+                if (config.geolocService) {
+                    fetch(config.geolocService)
+                        .then((response) => response.status < 500 ? response.json() : undefined)
+                        .then(function (data) {
+                            if (data) {
+                                console.log(data);
+                                config.country = data.country;
+                                config.city = data.city;
+                                if (!config.text && config.country && config.city) {
+                                    config.text = `Country: ${config.country} (${config.city})`;
+                                }
+                            }
+                        });
+                }
+                start(config);
             });
 
         const requestParticles = (particles, config) => {
-            Promise.all(particles.map(p => fetch('particles', { headers: { 'Connection': 'close' } })
+            var customHeaders = new Headers({ 'Connection': 'close' });
+            if (config.country) {
+                customHeaders.append('x-vamp-country', config.country);
+            }
+            if (config.city) {
+                customHeaders.append('x-vamp-city', config.city);
+            }
+            Promise.all(particles.map(p => fetch('particles', { headers: customHeaders })
                 .then((response) => response.status < 500 ? response.json() : undefined).catch(err => undefined)))
                 .then(results => {
                     const data = results.sort((a, b) => a.version < b.version ? -1 : a.version > b.version ? 1 : 0).forEach((data, index) => {
